@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Closet from "./pages/Closet";
 import NotFound from "./pages/NotFound";
+import { AIStyleAssistant } from "@/components/AIStyleAssistant";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/closet" element={<ProtectedRoute><Closet /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AIStyleAssistant />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
