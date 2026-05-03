@@ -5,15 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { recommendOutfit, type Recommendation } from "@/lib/api";
+import { toast } from "sonner";
+import { Sparkles, Loader2 } from "lucide-react";
 
 const CIRCUMSTANCES = ["Casual", "Party", "Formal", "Workout", "Summer", "Winter"] as const;
 type Circumstance = (typeof CIRCUMSTANCES)[number];
@@ -29,30 +28,6 @@ const items = [
   { name: "Quilted Coat", category: "Outerwear", tags: ["Winter"] },
 ];
 
-type Recommendation = { title: string; pieces: string[]; rationale: string };
-
-async function postRecommendation(payload: {
-  circumstances: Circumstance[];
-  factorWeather: boolean;
-  weather: unknown;
-}): Promise<Recommendation> {
-  // TODO: wire up to FastAPI: POST /api/closet/recommend
-  // const res = await fetch("/api/closet/recommend", {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload),
-  // });
-  // return res.json();
-  await new Promise((r) => setTimeout(r, 1400));
-  return {
-    title: "Effortless Evening",
-    pieces: ["Silk Slip Dress", "Wool Trench", "Leather Loafer"],
-    rationale: `A composed silhouette tuned for ${payload.circumstances.join(", ") || "any moment"}${
-      payload.factorWeather ? " — layered for current conditions." : "."
-    }`,
-  };
-}
-
 const Closet = () => {
   const [filter, setFilter] = useState<Set<Circumstance>>(new Set());
   const [recCircs, setRecCircs] = useState<Set<Circumstance>>(new Set());
@@ -62,9 +37,7 @@ const Closet = () => {
   const [open, setOpen] = useState(false);
   const { weather } = useWeather();
 
-  useEffect(() => {
-    document.title = "My Closet — Maison";
-  }, []);
+  useEffect(() => { document.title = "My Closet — StyleAI"; }, []);
 
   const toggle = (set: Set<Circumstance>, c: Circumstance, setter: (s: Set<Circumstance>) => void) => {
     const next = new Set(set);
@@ -78,40 +51,46 @@ const Closet = () => {
     setOpen(true);
     setLoadingRec(true);
     setRec(null);
-    const r = await postRecommendation({
-      circumstances: Array.from(recCircs),
-      factorWeather,
-      weather,
-    });
-    setRec(r);
-    setLoadingRec(false);
+    try {
+      const r = await recommendOutfit({
+        circumstances: Array.from(recCircs),
+        factorWeather,
+        weather,
+        items,
+      });
+      setRec(r);
+    } catch (e: any) {
+      toast.error(e.message || "Recommendation failed");
+      setOpen(false);
+    } finally {
+      setLoadingRec(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <TopNav />
-      <main className="mx-auto max-w-7xl px-5 sm:px-8 py-10 sm:py-16">
+      <main className="mx-auto max-w-7xl px-5 sm:px-8 py-8 sm:py-12">
         <WeatherWidget />
 
-        {/* What should I wear */}
-        <section className="mt-10 border border-border bg-card p-6 sm:p-10">
-          <p className="text-xs uppercase tracking-editorial text-muted-foreground">Style Concierge</p>
-          <h2 className="mt-3 font-serif text-3xl sm:text-5xl">What should I wear?</h2>
+        {/* Style Concierge */}
+        <section className="mt-10 rounded-3xl border border-border bg-card/60 backdrop-blur p-6 sm:p-10 relative overflow-hidden">
+          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-gradient-primary opacity-20 blur-3xl" />
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold">Style Concierge</p>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-bold">What should I wear?</h2>
 
-          <div className="mt-8">
-            <Label className="text-[10px] uppercase tracking-editorial text-muted-foreground">
-              Circumstance
-            </Label>
+          <div className="mt-6">
+            <Label className="text-xs uppercase tracking-widest text-muted-foreground">Circumstance</Label>
             <div className="mt-3 flex flex-wrap gap-2">
               {CIRCUMSTANCES.map((c) => (
                 <button
                   key={c}
                   onClick={() => toggle(recCircs, c, setRecCircs)}
                   className={cn(
-                    "px-4 py-2 rounded-full border text-xs uppercase tracking-editorial transition-colors",
+                    "px-4 py-2 rounded-full border text-xs font-semibold transition-all",
                     recCircs.has(c)
-                      ? "bg-foreground text-background border-foreground"
-                      : "bg-transparent border-border text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-primary text-white border-transparent shadow-glow"
+                      : "bg-secondary/60 border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {c}
@@ -120,40 +99,40 @@ const Closet = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               <Switch id="weather" checked={factorWeather} onCheckedChange={setFactorWeather} />
-              <Label htmlFor="weather" className="text-xs uppercase tracking-editorial cursor-pointer">
+              <Label htmlFor="weather" className="text-sm cursor-pointer">
                 Factor in current weather
               </Label>
             </div>
             <Button
               onClick={getRecommendation}
-              className="h-12 rounded-none text-xs uppercase tracking-editorial px-6"
+              className="rounded-xl bg-gradient-primary text-white px-6 h-12 shadow-glow hover:opacity-90"
             >
-              Get Recommendation
+              <Sparkles className="mr-2 h-4 w-4" /> Get Recommendation
             </Button>
           </div>
         </section>
 
-        {/* Closet header + filters */}
-        <div className="mt-16">
-          <p className="text-xs uppercase tracking-editorial text-muted-foreground">Wardrobe</p>
-          <h1 className="mt-3 font-serif text-4xl sm:text-6xl">My Closet</h1>
+        {/* Closet header */}
+        <div className="mt-12">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Wardrobe</p>
+          <h1 className="mt-2 text-4xl sm:text-5xl font-bold">My <span className="text-gradient">Closet</span></h1>
         </div>
 
-        <div className="mt-8">
-          <p className="text-[10px] uppercase tracking-editorial text-muted-foreground">Filter by circumstance</p>
+        <div className="mt-6">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">Filter by circumstance</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {CIRCUMSTANCES.map((c) => (
               <Badge
                 key={c}
                 onClick={() => toggle(filter, c, setFilter)}
                 className={cn(
-                  "cursor-pointer rounded-full px-4 py-1.5 text-[10px] uppercase tracking-editorial border transition-colors",
+                  "cursor-pointer rounded-full px-4 py-1.5 text-[11px] font-semibold border transition-all",
                   filter.has(c)
-                    ? "bg-foreground text-background border-foreground hover:bg-foreground"
-                    : "bg-transparent text-muted-foreground border-border hover:text-foreground"
+                    ? "bg-gradient-primary text-white border-transparent shadow-glow hover:opacity-90"
+                    : "bg-secondary/60 text-muted-foreground border-border hover:text-foreground"
                 )}
               >
                 {c}
@@ -162,17 +141,17 @@ const Closet = () => {
           </div>
         </div>
 
-        <div className="mt-10 grid gap-6 grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-5 grid-cols-2 lg:grid-cols-4">
           {filtered.map((it, i) => (
-            <article key={it.name} className="group">
-              <div className="aspect-[3/4] bg-secondary border border-border flex items-end p-4 sm:p-6">
-                <span className="font-serif text-5xl sm:text-7xl text-muted-foreground/40">
+            <article key={it.name} className="group rounded-2xl border border-border bg-card/60 backdrop-blur overflow-hidden hover:border-primary/40 transition-colors">
+              <div className="aspect-[3/4] bg-gradient-to-br from-secondary to-secondary/40 flex items-end p-5">
+                <span className="font-bold text-5xl text-muted-foreground/30">
                   {String(i + 1).padStart(2, "0")}
                 </span>
               </div>
-              <div className="mt-3 flex items-baseline justify-between">
-                <h3 className="font-serif text-base sm:text-lg">{it.name}</h3>
-                <span className="text-[10px] uppercase tracking-editorial text-muted-foreground">{it.category}</span>
+              <div className="p-4">
+                <h3 className="font-semibold text-sm">{it.name}</h3>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">{it.category}</p>
               </div>
             </article>
           ))}
@@ -185,30 +164,33 @@ const Closet = () => {
       </main>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-none border-border max-w-lg">
+        <DialogContent className="rounded-3xl border-border max-w-lg bg-card">
           <DialogHeader>
-            <DialogDescription className="text-[10px] uppercase tracking-editorial text-muted-foreground">
+            <DialogDescription className="text-xs uppercase tracking-widest text-primary font-semibold">
               Suggested Look
             </DialogDescription>
-            <DialogTitle className="font-serif text-3xl">
+            <DialogTitle className="text-3xl font-bold">
               {loadingRec ? "Curating…" : rec?.title}
             </DialogTitle>
           </DialogHeader>
 
           {loadingRec ? (
             <div className="space-y-3 mt-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" /> Asking the AI stylist…
+              </div>
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full rounded-xl" />
             </div>
           ) : rec ? (
             <div className="mt-4 space-y-6">
               <p className="text-sm text-muted-foreground italic">{rec.rationale}</p>
               <ul className="space-y-3">
                 {rec.pieces.map((p) => (
-                  <li key={p} className="flex items-center gap-4 border-b border-border pb-3">
-                    <div className="h-12 w-12 bg-secondary border border-border" />
-                    <span className="font-serif text-lg">{p}</span>
+                  <li key={p} className="flex items-center gap-4 rounded-xl border border-border bg-secondary/40 p-3">
+                    <div className="h-12 w-12 rounded-lg bg-gradient-primary/20 border border-border" />
+                    <span className="font-semibold">{p}</span>
                   </li>
                 ))}
               </ul>
