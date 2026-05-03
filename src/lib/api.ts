@@ -76,7 +76,12 @@ export async function recommendOutfit(payload: {
 export type SimilarItem = { id: string; title: string; price: string; thumb: string; url: string; retailer?: string };
 export type VisualSearchResponse = { description: string; items: SimilarItem[] };
 
-export type ChatMsg = { role: "user" | "assistant"; content: string };
+export type ChatMsg = {
+  role: "user" | "assistant";
+  content:
+    | string
+    | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+};
 export async function styleChat(payload: {
   messages: ChatMsg[];
   weather: Weather | null;
