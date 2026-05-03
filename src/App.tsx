@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Closet from "./pages/Closet";
+import Stylist from "./pages/Stylist";
 import NotFound from "./pages/NotFound";
 import { AIStyleAssistant } from "@/components/AIStyleAssistant";
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/stylist" element={<ProtectedRoute><Stylist /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/closet" element={<ProtectedRoute><Closet /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
