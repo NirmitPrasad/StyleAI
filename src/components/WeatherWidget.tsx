@@ -51,7 +51,7 @@ export const WeatherWidget = () => {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {denied ? "Default location" : "Your location"}
+            {denied ? "Default location" : "Location"}
           </p>
           <p className="font-semibold text-base leading-tight">
             {loading ? "—" : [weather?.city, weather?.region, weather?.country].filter(Boolean).join(", ") || "Unknown"}

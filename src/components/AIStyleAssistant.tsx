@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ImagePlus, Send, Sparkles, ExternalLink, Loader2, Star, X, ShoppingBag } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { visualSearch, styleChat, rateStyle, type SimilarItem, type ChatMsg } from "@/lib/api";
+import { visualSearch, styleChat, styleChatStream, rateStyle, type SimilarItem, type ChatMsg } from "@/lib/api";
 import { useWeather } from "@/components/WeatherWidget";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import { toast } from "sonner";
@@ -87,6 +87,23 @@ export const AIStyleAssistant = () => {
       return;
     }
 
+    if (img && /\b(show|recommend|shop)\b/i.test(q)) {
+      setLoading(true);
+      try {
+        const res = await visualSearch(img);
+        setMessages((m) => [
+          ...m,
+          { id: uid(), role: "bot", kind: "text", text: res.description || "Shop the look:" },
+          { id: uid(), role: "bot", kind: "results", items: res.items || [] },
+        ]);
+      } catch (err: any) {
+        toast.error(err.message || "Visual search failed");
+      } finally { setLoading(false); }
+      return;
+    }
+
+    const assistantId = uid();
+    setMessages((m) => [...m, { id: assistantId, role: "bot", kind: "text", text: "" }]);
     setLoading(true);
     try {
       const history: ChatMsg[] = messages
@@ -101,10 +118,16 @@ export const AIStyleAssistant = () => {
         : q;
       history.push({ role: "user", content: userContent });
 
-      const { reply } = await styleChat({ messages: history, weather, closet: CLOSET, location: locationCtx });
-      setMessages((m) => [...m, { id: uid(), role: "bot", kind: "text", text: reply || "—" }]);
+      await styleChatStream({ messages: history, weather, closet: CLOSET, location: locationCtx }, (chunk) => {
+        setMessages((m) => m.map((msg) =>
+          msg.id === assistantId ? { ...msg, text: msg.text + chunk } : msg
+        ));
+      });
     } catch (e: any) {
       toast.error(e.message || "Chat failed");
+      setMessages((m) => m.map((msg) =>
+        msg.id === assistantId ? { ...msg, text: "Sorry, I couldn't finish that." } : msg
+      ));
     } finally { setLoading(false); }
   };
 
