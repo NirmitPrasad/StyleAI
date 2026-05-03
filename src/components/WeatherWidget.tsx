@@ -1,31 +1,14 @@
 import { useEffect, useState } from "react";
-import { Cloud, CloudRain, Loader2, MapPin, Sun } from "lucide-react";
+import { Cloud, CloudRain, Loader2, MapPin, Snowflake, Sun } from "lucide-react";
+import { getWeather, type Weather } from "@/lib/api";
 
-export type Weather = {
-  city: string;
-  tempC: number;
-  condition: "Sunny" | "Cloudy" | "Raining";
-};
-
-// Skeleton for backend wiring later
-export async function fetchWeather(lat: number, lon: number): Promise<Weather> {
-  // TODO: wire up to FastAPI backend
-  // const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
-  // if (!res.ok) throw new Error("Weather fetch failed");
-  // return res.json();
-  await new Promise((r) => setTimeout(r, 600));
-  const conditions: Weather["condition"][] = ["Sunny", "Cloudy", "Raining"];
-  return {
-    city: "Paris",
-    tempC: 18 + Math.round(Math.random() * 6),
-    condition: conditions[Math.floor(Math.random() * 3)],
-  };
-}
+export type { Weather };
 
 const ConditionIcon = ({ c }: { c: Weather["condition"] }) => {
-  if (c === "Sunny") return <Sun className="h-5 w-5" />;
-  if (c === "Raining") return <CloudRain className="h-5 w-5" />;
-  return <Cloud className="h-5 w-5" />;
+  if (c === "Sunny") return <Sun className="h-5 w-5 text-amber-300" />;
+  if (c === "Raining") return <CloudRain className="h-5 w-5 text-sky-300" />;
+  if (c === "Snowing") return <Snowflake className="h-5 w-5 text-sky-200" />;
+  return <Cloud className="h-5 w-5 text-muted-foreground" />;
 };
 
 export const useWeather = () => {
@@ -34,21 +17,23 @@ export const useWeather = () => {
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
-    if (!("geolocation" in navigator)) {
-      fetchWeather(0, 0).then(setWeather).finally(() => setLoading(false));
-      return;
-    }
+    const fallback = () => {
+      // Paris fallback coords
+      getWeather(48.8566, 2.3522).then(setWeather).catch(() => {}).finally(() => setLoading(false));
+    };
+    if (!("geolocation" in navigator)) return fallback();
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        fetchWeather(pos.coords.latitude, pos.coords.longitude)
+        getWeather(pos.coords.latitude, pos.coords.longitude)
           .then(setWeather)
+          .catch(() => {})
           .finally(() => setLoading(false));
       },
       () => {
         setDenied(true);
-        fetchWeather(0, 0).then(setWeather).finally(() => setLoading(false));
+        fallback();
       },
-      { timeout: 5000 }
+      { timeout: 6000 }
     );
   }, []);
 
@@ -59,30 +44,32 @@ export const WeatherWidget = () => {
   const { weather, loading, denied } = useWeather();
 
   return (
-    <div className="flex items-center justify-between border border-border bg-card px-5 py-4">
+    <div className="flex items-center justify-between rounded-2xl border border-border bg-card/60 backdrop-blur px-5 py-4">
       <div className="flex items-center gap-3">
-        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-secondary">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+        </div>
         <div>
-          <p className="text-[10px] uppercase tracking-editorial text-muted-foreground">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
             {denied ? "Default location" : "Your location"}
           </p>
-          <p className="font-serif text-lg leading-tight">{loading ? "—" : weather?.city}</p>
+          <p className="font-semibold text-base leading-tight">{loading ? "—" : weather?.city ?? "Unknown"}</p>
         </div>
       </div>
       <div className="flex items-center gap-3">
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        ) : (
+        ) : weather ? (
           <>
-            <ConditionIcon c={weather!.condition} />
+            <ConditionIcon c={weather.condition} />
             <div className="text-right">
-              <p className="font-serif text-2xl leading-none">{weather!.tempC}°</p>
-              <p className="text-[10px] uppercase tracking-editorial text-muted-foreground mt-1">
-                {weather!.condition}
+              <p className="font-bold text-2xl leading-none">{weather.tempC}°</p>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                {weather.condition}
               </p>
             </div>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );
