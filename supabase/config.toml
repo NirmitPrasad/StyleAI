@@ -1,1 +1,13 @@
 project_id = "fpwlwriyqkpokedtgsem"
+
+[functions.weather]
+verify_jwt = false
+
+[functions.closet-recommend]
+verify_jwt = false
+
+[functions.visual-search]
+verify_jwt = false
+
+[functions.style-rating]
+verify_jwt = false
