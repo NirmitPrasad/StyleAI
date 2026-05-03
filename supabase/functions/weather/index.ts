@@ -1,4 +1,7 @@
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const WMO: Record<number, "Sunny" | "Cloudy" | "Raining" | "Snowing"> = {
   0: "Sunny", 1: "Sunny", 2: "Cloudy", 3: "Cloudy",
