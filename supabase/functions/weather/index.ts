@@ -33,13 +33,20 @@ Deno.serve(async (req) => {
     const condition = WMO[code] ?? "Cloudy";
 
     let city = "Your location";
+    let region = "";
+    let country = "";
     try {
       const gRes = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&count=1&language=en`);
       const gData = await gRes.json();
-      city = gData?.results?.[0]?.name ?? city;
+      const r = gData?.results?.[0];
+      if (r) {
+        city = r.name ?? city;
+        region = r.admin1 ?? "";
+        country = r.country ?? "";
+      }
     } catch (_) {}
 
-    return new Response(JSON.stringify({ city, tempC, condition }), {
+    return new Response(JSON.stringify({ city, region, country, tempC, condition, lat, lon }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
