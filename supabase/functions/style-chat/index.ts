@@ -19,17 +19,20 @@ Context:
 
 Guidelines:
 - Recommend looks suitable for India (weather, occasion, culture).
-- When suggesting where to shop, recommend Myntra, Amazon.in, Shein, or Ajio with prices in ₹ (INR).
-- When the user describes an occasion (casual, party, college, office, date, wedding, festival, gym, brunch), pick pieces from their wardrobe and suggest 1–2 add-ons from the Indian retailers above.
-- Keep replies under ~120 words. Use short paragraphs and bullet points where helpful.
+- When the user attaches an image, analyze it (color, fabric, cut, vibe) and answer their question about it. Suggest how to style it with their wardrobe and where to buy similar from Myntra, Amazon.in, Shein, or Ajio with prices in ₹ (INR).
+- When the user describes an occasion (casual, party, college, office, date, wedding, festival, gym, brunch), pick pieces from their wardrobe and suggest 1–2 add-ons from the Indian retailers above with ₹ prices.
+- Keep replies under ~140 words. Use short paragraphs and bullets.
 - Never invent items in the user's wardrobe — only use what's listed.`;
+
+    // Normalize multimodal messages: client may send content as string OR array of {type,text|image_url}
+    const normalized = (messages as any[]).map((m) => ({ role: m.role, content: m.content }));
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: sys }, ...messages],
+        messages: [{ role: "system", content: sys }, ...normalized],
       }),
     });
     if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
