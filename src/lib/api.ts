@@ -13,6 +13,10 @@ async function callExternal<T>(path: string, init: RequestInit): Promise<T> {
 
 export type Weather = {
   city: string;
+  region?: string;
+  country?: string;
+  lat?: number;
+  lon?: number;
   tempC: number;
   condition: "Sunny" | "Cloudy" | "Raining" | "Snowing";
 };
@@ -69,8 +73,26 @@ export async function recommendOutfit(payload: {
   return data as Recommendation;
 }
 
-export type SimilarItem = { id: string; title: string; price: string; thumb: string; url: string };
+export type SimilarItem = { id: string; title: string; price: string; thumb: string; url: string; retailer?: string };
 export type VisualSearchResponse = { description: string; items: SimilarItem[] };
+
+export type ChatMsg = { role: "user" | "assistant"; content: string };
+export async function styleChat(payload: {
+  messages: ChatMsg[];
+  weather: Weather | null;
+  closet: ClosetItem[];
+  location: { city?: string; region?: string; country?: string } | null;
+}): Promise<{ reply: string }> {
+  if (API_BASE)
+    return callExternal(`/api/style-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  const { data, error } = await supabase.functions.invoke("style-chat", { body: payload });
+  if (error) throw error;
+  return data as { reply: string };
+}
 
 export async function visualSearch(image: string): Promise<VisualSearchResponse> {
   if (API_BASE) {
