@@ -6,12 +6,25 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { image } = await req.json(); // data URL or https URL
+    const { image } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not set");
     if (!image) throw new Error("image required");
 
-    const sys = `You are a fashion vision assistant. Describe the garment, then return strict JSON: {"description":string,"items":[{"id":string,"title":string,"price":string,"thumb":string,"url":string}]}. Generate 4 plausible similar shoppable items with realistic titles and prices. For thumb, use https://images.unsplash.com photos matching the style. For url use a Google search URL: https://www.google.com/search?tbm=shop&q=<encoded title>.`;
+    const sys = `You are an Indian fashion vision assistant. Identify the garment (color, fabric, cut, style, occasion). Return STRICT JSON:
+{"description": string, "items": [{"id": string, "title": string, "price": string, "thumb": string, "url": string, "retailer": "Myntra"|"Amazon"|"Shein"|"Ajio"}]}
+
+Generate 8 plausible Indian shoppable items — exactly 2 from each retailer (Myntra, Amazon, Shein, Ajio). Prices in Indian Rupees with ₹ symbol (e.g. "₹1,499"). Use realistic Indian price ranges (₹399 – ₹4,999 typical).
+
+For thumb, use real Unsplash photos that match the garment style: https://images.unsplash.com/photo-XXXX?w=400&q=80 (use plausible photo IDs of fashion / clothing).
+
+For url, use these search URL patterns with the garment keywords URL-encoded:
+- Myntra: https://www.myntra.com/<keywords-with-hyphens>
+- Amazon: https://www.amazon.in/s?k=<encoded keywords>
+- Shein: https://in.shein.com/pdsearch/<encoded keywords>
+- Ajio: https://www.ajio.com/search/?text=<encoded keywords>
+
+Titles should sound like real Indian listings (e.g. "Women Floral Print Anarkali Kurta", "Men Slim Fit Cotton Casual Shirt").`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -21,7 +34,7 @@ Deno.serve(async (req) => {
         messages: [
           { role: "system", content: sys },
           { role: "user", content: [
-            { type: "text", text: "Find similar items to this garment." },
+            { type: "text", text: "Find similar items to this garment available in India." },
             { type: "image_url", image_url: { url: image } },
           ]},
         ],
