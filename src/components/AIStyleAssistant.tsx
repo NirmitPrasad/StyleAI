@@ -2,26 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ImagePlus, Send, Sparkles, ExternalLink, Loader2, Star } from "lucide-react";
+import { ImagePlus, Send, Sparkles, ExternalLink, Loader2, Star, X, ShoppingBag } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { visualSearch, styleChat, rateStyle, type SimilarItem, type ChatMsg } from "@/lib/api";
 import { useWeather } from "@/components/WeatherWidget";
+import { renderMarkdownSafe } from "@/lib/sanitize";
 import { toast } from "sonner";
-const renderMarkdown = (text: string) => {
-  const html = text
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/^\s*[-*]\s+(.*)$/gm, "<li>$1</li>")
-    .replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>")
-    .replace(/\n/g, "<br/>");
-  return html;
-};
 
 type Message =
-  | { id: string; role: "user"; kind: "text"; text: string }
+  | { id: string; role: "user"; kind: "text"; text: string; image?: string }
   | { id: string; role: "user"; kind: "image"; src: string }
   | { id: string; role: "bot"; kind: "text"; text: string }
   | { id: string; role: "bot"; kind: "results"; items: SimilarItem[] }
@@ -29,7 +19,6 @@ type Message =
 
 const uid = () => Math.random().toString(36).slice(2);
 
-// Mock closet — kept in sync with /closet page until persisted
 const CLOSET = [
   { name: "Silk Slip Dress", category: "Dresses", tags: ["Party", "Summer"] },
   { name: "Wool Trench", category: "Outerwear", tags: ["Formal", "Winter"] },
@@ -41,6 +30,13 @@ const CLOSET = [
   { name: "Quilted Coat", category: "Outerwear", tags: ["Winter"] },
 ];
 
+const QUICK_PROMPTS = [
+  "What should I wear to a party tonight?",
+  "Casual brunch outfit?",
+  "Office look for tomorrow",
+  "Festival / wedding ideas",
+];
+
 export const AIStyleAssistant = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -48,10 +44,11 @@ export const AIStyleAssistant = () => {
       id: uid(),
       role: "bot",
       kind: "text",
-      text: "Namaste! 👋 I'm your AI Stylist. Ask me what to wear (casual, party, office, date, festival), upload a clothing photo to find it on Myntra/Amazon/Shein/Ajio, or say **rate me** to get a style score.",
+      text: "Namaste! 👋 I'm your AI Stylist. Ask me what to wear, attach a photo with your question, or tap **Find Item** to shop the look on Myntra, Amazon, Shein & Ajio.",
     },
   ]);
   const [input, setInput] = useState("");
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastFace, setLastFace] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -71,23 +68,22 @@ export const AIStyleAssistant = () => {
     ? { city: weather.city, region: weather.region, country: weather.country }
     : null;
 
-  const sendText = async () => {
-    const q = input.trim();
-    if (!q) return;
+  const sendText = async (override?: string) => {
+    const q = (override ?? input).trim();
+    const img = pendingImage;
+    if (!q && !img) return;
     setInput("");
-    setMessages((m) => [...m, { id: uid(), role: "user", kind: "text", text: q }]);
+    setPendingImage(null);
+    setMessages((m) => [...m, { id: uid(), role: "user", kind: "text", text: q || "(image)", image: img || undefined }]);
 
-    // shortcut: rate me
-    if (/\brate\b|\bscore\b|\brating\b/i.test(q)) {
+    if (/\brate\s*me\b|\bstyle\s*score\b/i.test(q)) {
       setLoading(true);
       try {
-        const r = await rateStyle({ facePhoto: lastFace, closet: CLOSET });
+        const r = await rateStyle({ facePhoto: lastFace || img, closet: CLOSET });
         setMessages((m) => [...m, { id: uid(), role: "bot", kind: "rating", score: r.score, aesthetic: r.aesthetic, advice: r.advice }]);
       } catch (e: any) {
         toast.error(e.message || "Rating failed");
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
       return;
     }
 
@@ -96,53 +92,64 @@ export const AIStyleAssistant = () => {
       const history: ChatMsg[] = messages
         .filter((m) => m.kind === "text")
         .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: (m as any).text }));
-      history.push({ role: "user", content: q });
+
+      const userContent: ChatMsg["content"] = img
+        ? [
+            { type: "text", text: q || "What is this and how should I style it?" },
+            { type: "image_url", image_url: { url: img } },
+          ]
+        : q;
+      history.push({ role: "user", content: userContent });
+
       const { reply } = await styleChat({ messages: history, weather, closet: CLOSET, location: locationCtx });
       setMessages((m) => [...m, { id: uid(), role: "bot", kind: "text", text: reply || "—" }]);
     } catch (e: any) {
       toast.error(e.message || "Chat failed");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async () => {
-      const src = reader.result as string;
-      setMessages((m) => [...m, { id: uid(), role: "user", kind: "image", src }]);
-      setLoading(true);
-      try {
-        const res = await visualSearch(src);
-        setMessages((m) => [
-          ...m,
-          { id: uid(), role: "bot", kind: "text", text: res.description || "Found similar pieces on Myntra, Amazon, Shein and Ajio:" },
-          { id: uid(), role: "bot", kind: "results", items: res.items || [] },
-        ]);
-      } catch (err: any) {
-        toast.error(err.message || "Visual search failed");
-      } finally {
-        setLoading(false);
-      }
-    };
+    reader.onload = () => setPendingImage(reader.result as string);
     reader.readAsDataURL(file);
     e.target.value = "";
+  };
+
+  const findSimilar = async () => {
+    if (!pendingImage) { toast.info("Attach a photo first"); return; }
+    const src = pendingImage;
+    setPendingImage(null);
+    setMessages((m) => [...m, { id: uid(), role: "user", kind: "image", src }]);
+    setLoading(true);
+    try {
+      const res = await visualSearch(src);
+      setMessages((m) => [
+        ...m,
+        { id: uid(), role: "bot", kind: "text", text: res.description || "Shop the look:" },
+        { id: uid(), role: "bot", kind: "results", items: res.items || [] },
+      ]);
+    } catch (err: any) {
+      toast.error(err.message || "Visual search failed");
+    } finally { setLoading(false); }
   };
 
   const onFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const src = reader.result as string;
       setLastFace(src);
-      setMessages((m) => [
-        ...m,
-        { id: uid(), role: "user", kind: "image", src },
-        { id: uid(), role: "bot", kind: "text", text: "Got your photo. Type **rate me** to get your style score." },
-      ]);
+      setMessages((m) => [...m, { id: uid(), role: "user", kind: "image", src }]);
+      setLoading(true);
+      try {
+        const r = await rateStyle({ facePhoto: src, closet: CLOSET });
+        setMessages((m) => [...m, { id: uid(), role: "bot", kind: "rating", score: r.score, aesthetic: r.aesthetic, advice: r.advice }]);
+      } catch (e: any) {
+        toast.error(e.message || "Rating failed");
+      } finally { setLoading(false); }
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -160,29 +167,32 @@ export const AIStyleAssistant = () => {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col bg-card border-border">
-          <SheetHeader className="px-6 py-5 border-b border-border">
-            <SheetDescription className="text-xs uppercase tracking-widest text-primary font-semibold">
+          <SheetHeader className="px-6 py-4 border-b border-border">
+            <SheetDescription className="text-[10px] uppercase tracking-widest text-primary font-semibold">
               {weather ? `${weather.city}${weather.country ? ", " + weather.country : ""} · ${weather.tempC}° ${weather.condition}` : "Concierge"}
             </SheetDescription>
-            <SheetTitle className="text-2xl font-bold">AI Style Assistant</SheetTitle>
+            <SheetTitle className="text-xl font-bold">AI Style Assistant</SheetTitle>
           </SheetHeader>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-3">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.map((m) => {
               if (m.kind === "text") {
                 return (
-                  <div key={m.id} className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                  <div key={m.id} className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     m.role === "user" ? "ml-auto bg-gradient-primary text-white" : "bg-secondary/70 text-foreground"
                   }`}>
-                    {m.role === "bot" ? (
-                      <div className="[&_ul]:list-disc [&_ul]:pl-4 [&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text) }} />
-                    ) : m.text}
+                    {(m as any).image && (
+                      <img src={(m as any).image} alt="" className="rounded-xl mb-2 max-h-48 object-cover" />
+                    )}
+                    {m.role === "bot"
+                      ? <div className="[&_a]:underline [&_strong]:font-semibold [&_ul]:mt-1" dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }} />
+                      : <span>{m.text}</span>}
                   </div>
                 );
               }
               if (m.kind === "image") {
                 return (
-                  <div key={m.id} className="ml-auto max-w-[70%]">
+                  <div key={m.id} className="ml-auto max-w-[60%]">
                     <img src={m.src} alt="upload" className="rounded-2xl border border-border" />
                   </div>
                 );
@@ -191,12 +201,10 @@ export const AIStyleAssistant = () => {
                 return (
                   <div key={m.id} className="rounded-2xl border border-border bg-secondary/60 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-primary text-white font-bold text-lg">
-                        {m.score}
-                      </div>
+                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-primary text-white font-bold text-lg">{m.score}</div>
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Style Score</p>
-                        <p className="font-semibold">{m.aesthetic.join(" · ")}</p>
+                        <p className="font-semibold text-sm">{m.aesthetic.join(" · ")}</p>
                       </div>
                     </div>
                     <ul className="mt-3 space-y-1.5 text-sm text-foreground/90">
@@ -208,19 +216,19 @@ export const AIStyleAssistant = () => {
                 );
               }
               return (
-                <div key={m.id} className="grid grid-cols-2 gap-3">
+                <div key={m.id} className="grid grid-cols-2 gap-2">
                   {m.items.map((it) => (
                     <div key={it.id} className="rounded-2xl border border-border bg-secondary/50 overflow-hidden">
                       <div className="aspect-square bg-secondary overflow-hidden">
                         {it.thumb && <img src={it.thumb} alt={it.title} className="h-full w-full object-cover" loading="lazy" />}
                       </div>
-                      <div className="p-3">
+                      <div className="p-2.5">
                         {it.retailer && <p className="text-[9px] uppercase tracking-widest text-primary font-bold">{it.retailer}</p>}
                         <p className="text-xs font-semibold leading-tight line-clamp-2 mt-0.5">{it.title}</p>
                         <p className="text-xs text-gradient font-bold mt-1">{it.price}</p>
                         <a href={it.url} target="_blank" rel="noopener noreferrer"
                           className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-gradient-primary text-white text-[10px] font-semibold py-1.5 hover:opacity-90">
-                          Buy Now <ExternalLink className="h-3 w-3" />
+                          Buy <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
                     </div>
@@ -229,29 +237,55 @@ export const AIStyleAssistant = () => {
               );
             })}
             {loading && (
-              <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                <Loader2 className="h-3 w-3 animate-spin" /> Thinking…
+              <div className="flex items-center gap-2 text-muted-foreground text-xs px-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Styling…
               </div>
             )}
           </div>
 
-          <div className="border-t border-border p-4 space-y-2">
+          <div className="border-t border-border p-3 space-y-2">
+            {/* Quick prompts */}
+            {messages.length <= 1 && (
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PROMPTS.map((p) => (
+                  <button key={p} onClick={() => sendText(p)}
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-secondary/40 hover:bg-secondary text-foreground/80">
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Pending image preview */}
+            {pendingImage && (
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-2">
+                <img src={pendingImage} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                <div className="flex-1 text-xs text-muted-foreground">Image ready. Type a question or shop similar.</div>
+                <Button size="sm" variant="ghost" onClick={findSimilar} className="h-8 px-2">
+                  <ShoppingBag className="h-3.5 w-3.5 mr-1" /> Shop
+                </Button>
+                <button onClick={() => setPendingImage(null)} aria-label="Remove" className="text-muted-foreground hover:text-foreground p-1">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             <input ref={fileRef} type="file" accept="image/*" onChange={onUpload} className="hidden" />
             <input ref={faceRef} type="file" accept="image/*" onChange={onFaceUpload} className="hidden" />
-            <div className="flex gap-2">
-              <Button onClick={() => fileRef.current?.click()} variant="outline" size="sm" className="flex-1 rounded-xl bg-secondary/40">
-                <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Find Item
-              </Button>
-              <Button onClick={() => faceRef.current?.click()} variant="outline" size="sm" className="flex-1 rounded-xl bg-secondary/40">
-                <Star className="mr-1.5 h-3.5 w-3.5" /> Rate Me
-              </Button>
-            </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => fileRef.current?.click()} aria-label="Attach image"
+                className="h-10 w-10 grid place-items-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground border border-border">
+                <ImagePlus className="h-4 w-4" />
+              </button>
+              <button onClick={() => faceRef.current?.click()} aria-label="Rate my style"
+                className="h-10 w-10 grid place-items-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground border border-border">
+                <Star className="h-4 w-4" />
+              </button>
               <Input value={input} onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !loading && sendText()}
-                placeholder="What should I wear to a party?"
-                className="rounded-xl bg-secondary/60" />
-              <Button onClick={sendText} disabled={loading} className="rounded-xl bg-gradient-primary text-white px-3">
+                placeholder={pendingImage ? "Ask about this photo…" : "What should I wear today?"}
+                className="rounded-xl bg-secondary/60 h-10" />
+              <Button onClick={() => sendText()} disabled={loading} className="rounded-xl bg-gradient-primary text-white h-10 px-3">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
