@@ -8,7 +8,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { visualSearch, styleChat, rateStyle, type SimilarItem, type ChatMsg } from "@/lib/api";
 import { useWeather } from "@/components/WeatherWidget";
 import { toast } from "sonner";
-import ReactMarkdown from "react-markdown";
+const renderMarkdown = (text: string) => {
+  const html = text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/^\s*[-*]\s+(.*)$/gm, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>")
+    .replace(/\n/g, "<br/>");
+  return html;
+};
 
 type Message =
   | { id: string; role: "user"; kind: "text"; text: string }
@@ -165,9 +175,7 @@ export const AIStyleAssistant = () => {
                     m.role === "user" ? "ml-auto bg-gradient-primary text-white" : "bg-secondary/70 text-foreground"
                   }`}>
                     {m.role === "bot" ? (
-                      <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_li]:my-0">
-                        <ReactMarkdown>{m.text}</ReactMarkdown>
-                      </div>
+                      <div className="[&_ul]:list-disc [&_ul]:pl-4 [&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text) }} />
                     ) : m.text}
                   </div>
                 );
