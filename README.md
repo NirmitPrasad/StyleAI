@@ -22,6 +22,7 @@
 
 ### 🌐 [Live Demo](https://fashion-styleai.lovable.app/) &nbsp;&nbsp;
 
+
 ---
 
 </div>
