@@ -20,7 +20,7 @@
 
 ---
 
-### 🌐 [Live Demo](#) &nbsp;&nbsp;
+### 🌐 [Live Demo](https://fashion-styleai.lovable.app/) &nbsp;&nbsp;
 
 ---
 
