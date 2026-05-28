@@ -44,15 +44,13 @@ export const AIStyleAssistant = () => {
       id: uid(),
       role: "bot",
       kind: "text",
-      text: "Namaste! 👋 I'm your AI Stylist. Ask me what to wear, attach a photo with your question, or tap **Find Item** to shop the look on Myntra, Amazon, Shein & Ajio.",
+      text: "Namaste! 👋 I'm your AI Stylist. \nGet outfit ideas, style advice, and shop your favorite looks instantly.",
     },
   ]);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [lastFace, setLastFace] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const faceRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const { user } = useAuth();
@@ -74,59 +72,35 @@ export const AIStyleAssistant = () => {
     if (!q && !img) return;
     setInput("");
     setPendingImage(null);
-    setMessages((m) => [...m, { id: uid(), role: "user", kind: "text", text: q || "(image)", image: img || undefined }]);
-
-    if (/\brate\s*me\b|\bstyle\s*score\b/i.test(q)) {
-      setLoading(true);
-      try {
-        const r = await rateStyle({ facePhoto: lastFace || img, closet: CLOSET });
-        setMessages((m) => [...m, { id: uid(), role: "bot", kind: "rating", score: r.score, aesthetic: r.aesthetic, advice: r.advice }]);
-      } catch (e: any) {
-        toast.error(e.message || "Rating failed");
-      } finally { setLoading(false); }
-      return;
-    }
-
-    if (img && /\b(show|recommend|shop)\b/i.test(q)) {
-      setLoading(true);
-      try {
-        const res = await visualSearch(img);
-        setMessages((m) => [
-          ...m,
-          { id: uid(), role: "bot", kind: "text", text: res.description || "Shop the look:" },
-          { id: uid(), role: "bot", kind: "results", items: res.items || [] },
-        ]);
-      } catch (err: any) {
-        toast.error(err.message || "Visual search failed");
-      } finally { setLoading(false); }
-      return;
-    }
+    setMessages((m) => [...m, { id: uid(), role: "user", kind: "text", text: q || "(Attached image)", image: img || undefined }]);
 
     const assistantId = uid();
     setMessages((m) => [...m, { id: assistantId, role: "bot", kind: "text", text: "" }]);
     setLoading(true);
     try {
-      const history: ChatMsg[] = messages
-        .filter((m) => m.kind === "text")
-        .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: (m as any).text }));
+      const history: ChatMsg[] = [];
+      messages.forEach((m) => {
+        if (m.kind === "text") {
+          history.push({ role: m.role === "user" ? "user" : "assistant", content: m.text });
+        }
+      });
 
       const userContent: ChatMsg["content"] = img
         ? [
-            { type: "text", text: q || "What is this and how should I style it?" },
+            { type: "text", text: q || "Please analyze this image and answer my question." },
             { type: "image_url", image_url: { url: img } },
           ]
         : q;
       history.push({ role: "user", content: userContent });
 
-      await styleChatStream({ messages: history, weather, closet: CLOSET, location: locationCtx }, (chunk) => {
-        setMessages((m) => m.map((msg) =>
-          msg.id === assistantId ? { ...msg, text: msg.text + chunk } : msg
-        ));
-      });
-    } catch (e: any) {
-      toast.error(e.message || "Chat failed");
+      const res = await styleChat({ messages: history, weather, closet: CLOSET, location: locationCtx });
       setMessages((m) => m.map((msg) =>
-        msg.id === assistantId ? { ...msg, text: "Sorry, I couldn't finish that." } : msg
+        msg.id === assistantId ? { ...msg, text: res.reply } : msg
+      ));
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Chat failed");
+      setMessages((m) => m.map((msg) =>
+        msg.id === assistantId ? { ...msg, text: "Sorry, I couldn't finish that. Please try again." } : msg
       ));
     } finally { setLoading(false); }
   };
@@ -153,29 +127,9 @@ export const AIStyleAssistant = () => {
         { id: uid(), role: "bot", kind: "text", text: res.description || "Shop the look:" },
         { id: uid(), role: "bot", kind: "results", items: res.items || [] },
       ]);
-    } catch (err: any) {
-      toast.error(err.message || "Visual search failed");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Visual search failed");
     } finally { setLoading(false); }
-  };
-
-  const onFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const src = reader.result as string;
-      setLastFace(src);
-      setMessages((m) => [...m, { id: uid(), role: "user", kind: "image", src }]);
-      setLoading(true);
-      try {
-        const r = await rateStyle({ facePhoto: src, closet: CLOSET });
-        setMessages((m) => [...m, { id: uid(), role: "bot", kind: "rating", score: r.score, aesthetic: r.aesthetic, advice: r.advice }]);
-      } catch (e: any) {
-        toast.error(e.message || "Rating failed");
-      } finally { setLoading(false); }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
   };
 
   return (
@@ -183,7 +137,7 @@ export const AIStyleAssistant = () => {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open AI Style Assistant"
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-primary text-white shadow-glow hover:scale-105 transition-transform flex items-center justify-center"
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-primary text-black shadow-glow hover:scale-105 transition-transform flex items-center justify-center"
       >
         <Sparkles className="h-6 w-6" />
       </button>
@@ -202,10 +156,10 @@ export const AIStyleAssistant = () => {
               if (m.kind === "text") {
                 return (
                   <div key={m.id} className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    m.role === "user" ? "ml-auto bg-gradient-primary text-white" : "bg-secondary/70 text-foreground"
+                    m.role === "user" ? "ml-auto bg-gradient-primary text-black" : "bg-secondary/70 text-foreground"
                   }`}>
-                    {(m as any).image && (
-                      <img src={(m as any).image} alt="" className="rounded-xl mb-2 max-h-48 object-cover" />
+                    {m.role === "user" && m.image && (
+                      <img src={m.image} alt="" className="rounded-xl mb-2 max-h-48 object-cover" />
                     )}
                     {m.role === "bot"
                       ? <div className="[&_a]:underline [&_strong]:font-semibold [&_ul]:mt-1" dangerouslySetInnerHTML={{ __html: renderMarkdownSafe(m.text) }} />
@@ -224,7 +178,7 @@ export const AIStyleAssistant = () => {
                 return (
                   <div key={m.id} className="rounded-2xl border border-border bg-secondary/60 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-primary text-white font-bold text-lg">{m.score}</div>
+                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-primary text-black font-bold text-lg">{m.score}</div>
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Style Score</p>
                         <p className="font-semibold text-sm">{m.aesthetic.join(" · ")}</p>
@@ -250,7 +204,7 @@ export const AIStyleAssistant = () => {
                         <p className="text-xs font-semibold leading-tight line-clamp-2 mt-0.5">{it.title}</p>
                         <p className="text-xs text-gradient font-bold mt-1">{it.price}</p>
                         <a href={it.url} target="_blank" rel="noopener noreferrer"
-                          className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-gradient-primary text-white text-[10px] font-semibold py-1.5 hover:opacity-90">
+                          className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-gradient-primary text-black text-[10px] font-semibold py-1.5 hover:opacity-90">
                           Buy <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
@@ -294,21 +248,16 @@ export const AIStyleAssistant = () => {
             )}
 
             <input ref={fileRef} type="file" accept="image/*" onChange={onUpload} className="hidden" />
-            <input ref={faceRef} type="file" accept="image/*" onChange={onFaceUpload} className="hidden" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2">
               <button onClick={() => fileRef.current?.click()} aria-label="Attach image"
-                className="h-10 w-10 grid place-items-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground border border-border">
+                className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground border border-border">
                 <ImagePlus className="h-4 w-4" />
-              </button>
-              <button onClick={() => faceRef.current?.click()} aria-label="Rate my style"
-                className="h-10 w-10 grid place-items-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground border border-border">
-                <Star className="h-4 w-4" />
               </button>
               <Input value={input} onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !loading && sendText()}
                 placeholder={pendingImage ? "Ask about this photo…" : "What should I wear today?"}
-                className="rounded-xl bg-secondary/60 h-10" />
-              <Button onClick={() => sendText()} disabled={loading} className="rounded-xl bg-gradient-primary text-white h-10 px-3">
+                className="rounded-xl bg-secondary/60 h-10 flex-1" />
+              <Button onClick={() => sendText()} disabled={loading} className="shrink-0 rounded-xl bg-gradient-primary text-black h-10 px-3">
                 <Send className="h-4 w-4" />
               </Button>
             </div>

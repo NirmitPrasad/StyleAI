@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -16,8 +16,8 @@
     --popover: 240 8% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 262 83% 65%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 0 0% 0%;
 
     --secondary: 240 6% 14%;
     --secondary-foreground: 0 0% 98%;
@@ -25,32 +25,32 @@
     --muted: 240 6% 14%;
     --muted-foreground: 240 5% 60%;
 
-    --accent: 290 80% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 46 65% 52%;
+    --accent-foreground: 0 0% 0%;
 
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 6% 18%;
     --input: 240 6% 16%;
-    --ring: 262 83% 65%;
+    --ring: 46 65% 52%;
 
     --radius: 0.875rem;
 
     /* Brand gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(262 83% 60%), hsl(322 80% 60%));
-    --gradient-text: linear-gradient(135deg, hsl(262 90% 70%), hsl(322 85% 65%));
-    --gradient-glow: radial-gradient(60% 60% at 50% 50%, hsl(262 83% 60% / 0.25), transparent);
-    --shadow-glow: 0 10px 40px -10px hsl(262 83% 60% / 0.5);
+    --gradient-primary: linear-gradient(135deg, hsl(46 65% 52%), hsl(46 65% 35%));
+    --gradient-text: linear-gradient(135deg, hsl(46 75% 65%), hsl(46 65% 45%));
+    --gradient-glow: radial-gradient(60% 60% at 50% 50%, hsl(46 65% 52% / 0.25), transparent);
+    --shadow-glow: 0 10px 40px -10px hsl(46 65% 52% / 0.5);
 
     --sidebar-background: 240 10% 4%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 262 83% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 240 6% 14%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 6% 18%;
-    --sidebar-ring: 262 83% 65%;
+    --sidebar-ring: 46 65% 52%;
   }
 }
 
@@ -60,10 +60,11 @@
   body {
     @apply font-sans antialiased;
     background:
-      radial-gradient(60% 50% at 10% 0%, hsl(262 83% 30% / 0.20), transparent),
-      radial-gradient(40% 40% at 100% 100%, hsl(322 80% 35% / 0.18), transparent),
+      radial-gradient(60% 50% at 10% 0%, hsl(46 65% 30% / 0.20), transparent),
+      radial-gradient(40% 40% at 100% 100%, hsl(46 65% 30% / 0.18), transparent),
       hsl(var(--background));
     min-height: 100vh;
+    overflow-x: hidden;
   }
   h1, h2, h3, h4 { @apply font-sans font-bold tracking-tight; }
 }
@@ -79,4 +80,76 @@
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .font-editorial-serif {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+  @keyframes slideUpBg {
+    0% {
+      transform: translateY(40px) scale(1.03);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+  .animate-slide-up-bg {
+    animation: slideUpBg 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes zoomFadeIn {
+    0% {
+      transform: scale(1.05);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .animate-zoom-fade-in {
+    animation: zoomFadeIn 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes fadeInUp {
+    0% {
+      transform: translateY(30px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  .animate-fade-in-up {
+    opacity: 0;
+    animation: fadeInUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+  .delay-700 { animation-delay: 700ms; }
+  .delay-800 { animation-delay: 800ms; }
+  @keyframes slideInLeft {
+    0% {
+      transform: translateX(-300px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  .animate-slide-in-left {
+    animation: slideInLeft 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .delay-1200 { animation-delay: 800ms; }
+  .delay-1300 { animation-delay: 900ms; }
+  .delay-1400 { animation-delay: 1000ms; }
+  .delay-1500 { animation-delay: 1100ms; }
+  .delay-1600 { animation-delay: 1200ms; }
+  .delay-1700 { animation-delay: 1300ms; }
+  .delay-1800 { animation-delay: 1400ms; }
+  .delay-1900 { animation-delay: 1500ms; }
 }

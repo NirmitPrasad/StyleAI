@@ -4,7 +4,7 @@ import { getWeather, type Weather } from "@/lib/api";
 
 export type { Weather };
 
-const ConditionIcon = ({ c }: { c: Weather["condition"] }) => {
+export const ConditionIcon = ({ c }: { c: Weather["condition"] }) => {
   if (c === "Sunny") return <Sun className="h-5 w-5 text-amber-300" />;
   if (c === "Raining") return <CloudRain className="h-5 w-5 text-sky-300" />;
   if (c === "Snowing") return <Snowflake className="h-5 w-5 text-sky-200" />;

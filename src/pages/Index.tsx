@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Camera, Sparkles, Shirt } from "lucide-react";
 
 const features = [
-  { icon: Camera, color: "text-purple-300", title: "Smart Digitization", desc: "Simply snap a photo of your clothes. Our AI instantly removes the background and categorizes every item in your digital closet." },
-  { icon: Sparkles, color: "text-pink-300", title: "AI Outfit Generation", desc: "Never ask 'what should I wear?' again. Get personalized outfit pairings based on the weather, occasion, and your unique style." },
-  { icon: Shirt, color: "text-cyan-300", title: "Trend Analysis", desc: "See how your wardrobe aligns with current fashion trends and get recommendations on what key pieces you might be missing." },
+  { icon: Camera, color: "text-[#D4AF37]", title: "Smart Digitization", desc: "Simply snap a photo of your clothes. Our AI instantly removes the background and categorizes every item in your digital closet." },
+  { icon: Sparkles, color: "text-[#D4AF37]", title: "AI Outfit Generation", desc: "Never ask 'what should I wear?' again. Get personalized outfit pairings based on the weather, occasion, and your unique style." },
+  { icon: Shirt, color: "text-[#D4AF37]", title: "Trend Analysis", desc: "See how your wardrobe aligns with current fashion trends and get recommendations on what key pieces you might be missing." },
 ];
 
 const Index = () => {
