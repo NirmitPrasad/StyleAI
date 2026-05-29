@@ -494,7 +494,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 <br/>
 
 [![GitHub](https://img.shields.io/badge/GitHub-NirmitPrasad-black?style=flat-square&logo=github)](https://github.com/NirmitPrasad)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat-square&logo=linkedin)](www.linkedin.com/in/nirmitprasad)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/nirmitprasad/)
 [![Portfolio](https://img.shields.io/badge/Portfolio-Visit-D4AF37?style=flat-square)](https://nirmitprasad.in/)
 
 </div>
